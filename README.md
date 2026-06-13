@@ -22,6 +22,8 @@ sensitivity.
 A demonstration of Huygens' principle — many elementary sources summing into a
 shaped wavefront, the basis of acoustic wave field synthesis.
 Superposition and interference
+The physics it represents
+Superposition and interference
 In a linear medium (free space for radio, air for sound) fields add:
 $$E_{\text{total}}(\mathbf{r}, t) = E_1(\mathbf{r}, t) + E_2(\mathbf{r}, t)$$
 Each source contributes a travelling wave. In the simulation the field map uses a
@@ -41,8 +43,6 @@ vanishes, $\cos\theta = -\Delta\varphi/(kd)$, which gives the beam-steering rela
 (angle measured from broadside):
 $$\sin\theta_{\text{steer}} = -\frac{\Delta\varphi}{k d}$$
 This is exactly why changing one phase number swings the beam without moving hardware.
-What each control does physically
-Control	Physical meaning	Effect
-Tower spacing ($d/\lambda$)	Separation of the elements in wavelengths	Sets fringe spacing and beam sharpness. Past $\sim!1\lambda$, grating lobes appear (extra copies of the main beam).
+
 Tower 2 phase ($\Delta\varphi$)	Relative time delay between the two feeds	Steers the main beam off broadside. At $\Delta\varphi$ large enough the beam reaches endfire (along the array axis).
 Tower 2 power ($A_2$)	Relative amplitude of the second emitter	Controls null depth. Equal amplitudes give perfect cancellation; setting it to zero collapses to a single omnidirectional source.
