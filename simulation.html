@@ -1,43 +1,73 @@
-<h2 class="sr-only">Interactive two-tower radio interference simulator: adjust the second tower's spacing, phase, and power to see how the combined electromagnetic field redistributes energy and steers a directional beam.</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two-Tower Interference &amp; Beamforming</title>
 <style>
-.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
-.ctl{display:flex;align-items:center;gap:12px;margin:0 0 12px}
-.ctl label{font-size:14px;color:var(--color-text-secondary);min-width:108px}
-.ctl .val{font-size:14px;font-weight:500;min-width:62px;text-align:right;color:var(--color-text-primary)}
-.chip{font-size:13px;color:var(--color-text-secondary)}
-.chip b{font-weight:500;color:var(--color-text-primary)}
-.fig{background:#0e1320;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);display:block;width:100%;height:auto}
+  :root{ --bg:#0b0f1a; --panel:#0e1320; --text:#e8ecf5; --muted:#9aa3b8; --border:rgba(255,255,255,0.14); --accent:#ffc45a; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; line-height:1.6; }
+  .wrap{ max-width:760px; margin:0 auto; padding:32px 20px 56px; }
+  h1{ font-size:24px; font-weight:600; margin:0 0 6px; }
+  p.lede{ color:var(--muted); margin:0 0 28px; }
+  .ctl{ display:flex; align-items:center; gap:12px; margin:0 0 14px; }
+  .ctl label{ font-size:14px; color:var(--muted); min-width:120px; }
+  .ctl input[type=range]{ flex:1; accent-color:var(--accent); }
+  .ctl .val{ font-size:14px; font-weight:500; min-width:64px; text-align:right; }
+  .figs{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-top:8px; }
+  .fig{ background:var(--panel); border:1px solid var(--border); border-radius:12px; display:block; width:100%; height:auto; }
+  #polar{ width:220px; max-width:100%; margin:0 auto; }
+  .chips{ display:flex; flex-wrap:wrap; gap:18px; margin-top:14px; font-size:13px; color:var(--muted); }
+  .chips b{ font-weight:500; color:var(--text); }
+  .btns{ display:flex; gap:10px; margin-top:16px; }
+  button{ background:transparent; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px 16px; font-size:14px; cursor:pointer; }
+  button:hover{ background:rgba(255,255,255,0.06); }
+  footer{ margin-top:32px; font-size:13px; color:var(--muted); border-top:1px solid var(--border); padding-top:16px; }
 </style>
-<div style="padding:0.5rem 0 0.5rem">
+</head>
+<body>
+<div class="wrap">
+  <h1>Two-tower interference &amp; beamforming</h1>
+  <p class="lede">Two coherent emitters on the horizontal line. Adjust the second tower's spacing, phase, and power to see how the combined field redistributes energy (left) and shapes a directional beam (right).</p>
+
   <div class="ctl">
     <label for="sep">Tower spacing</label>
-    <input type="range" id="sep" min="0.25" max="2" step="0.05" value="0.5" style="flex:1">
-    <span class="val" id="sepv">0.50 λ</span>
+    <input type="range" id="sep" min="0.25" max="2" step="0.05" value="0.5">
+    <span class="val" id="sepv">0.50 &lambda;</span>
   </div>
   <div class="ctl">
     <label for="phase">Tower 2 phase</label>
-    <input type="range" id="phase" min="-180" max="180" step="1" value="0" style="flex:1">
-    <span class="val" id="phasev">0°</span>
+    <input type="range" id="phase" min="-180" max="180" step="1" value="0">
+    <span class="val" id="phasev">0&deg;</span>
   </div>
   <div class="ctl">
     <label for="amp">Tower 2 power</label>
-    <input type="range" id="amp" min="0" max="100" step="1" value="100" style="flex:1">
+    <input type="range" id="amp" min="0" max="100" step="1" value="100">
     <span class="val" id="ampv">100%</span>
   </div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:6px">
+
+  <div class="figs">
     <div><canvas id="field" class="fig" width="280" height="200" aria-label="Field map showing interference fringes radiating from the two towers"></canvas></div>
-    <div style="display:flex;justify-content:center"><canvas id="polar" class="fig" width="800" height="220" style="width:800px;max-width:100%" aria-label="Far-field radiation pattern shown as a polar plot"></canvas></div>
+    <div><canvas id="polar" class="fig" width="220" height="220" aria-label="Far-field radiation pattern shown as a polar plot"></canvas></div>
   </div>
-  <div style="display:flex;flex-wrap:wrap;gap:18px;margin-top:12px">
-    <span class="chip">Main beam: <b id="beam">broadside (0°)</b></span>
-    <span class="chip">Nulls: <b id="nulls">deep — full cancellation</b></span>
-    <span class="chip">Total power: <b>conserved</b></span>
+
+  <div class="chips">
+    <span>Main beam: <b id="beam">broadside (0&deg;)</b></span>
+    <span>Nulls: <b id="nulls">deep &mdash; full cancellation</b></span>
+    <span>Total power: <b>conserved</b></span>
   </div>
-  <div style="display:flex;gap:10px;margin-top:14px">
+
+  <div class="btns">
     <button id="play">Pause</button>
     <button id="reset">Reset</button>
   </div>
+
+  <footer>
+    Left: instantaneous field (warm = crest, blue = trough), towers marked in white. Right: far-field radiation pattern; up/down is broadside, left/right (brighter axis) is endfire along the line through the towers. Energy is only redistributed, never created &mdash; see the README for the full physics.
+  </footer>
 </div>
+
 <script>
 (function(){
   var field=document.getElementById('field'),polar=document.getElementById('polar');
@@ -101,20 +131,22 @@
     var kd=2*Math.PI*sep,beamTxt;
     if(amp<0.01){beamTxt='omnidirectional';}
     else{var ratio=-phase/kd;if(ratio>1||ratio<-1){beamTxt='endfire (along tower line)';}
-      else{var thetaDeg=Math.acos(ratio)*180/Math.PI,off=Math.round(Math.abs(thetaDeg-90));beamTxt=off===0?'broadside (0°)':(off>=89?'endfire (along tower line)':(off+'° off broadside'));}}
+      else{var thetaDeg=Math.acos(ratio)*180/Math.PI,off=Math.round(Math.abs(thetaDeg-90));beamTxt=off===0?'broadside (0\u00b0)':(off>=89?'endfire (along tower line)':(off+'\u00b0 off broadside'));}}
     beamEl.textContent=beamTxt;
-    nullsEl.textContent=(amp<0.01)?'none (single source)':(minV<0.03?'deep — full cancellation':(minV<0.3?'partial':'shallow'));
+    nullsEl.textContent=(amp<0.01)?'none (single source)':(minV<0.03?'deep \u2014 full cancellation':(minV<0.3?'partial':'shallow'));
   }
   function refreshStatic(){var m=drawPolar();updateReadouts(m);if(raf==null)drawField(clock);}
   var raf=null,clock=0,lastNow=0;
   function loop(now){var dt=(now-lastNow)/1000;lastNow=now;clock+=dt;drawField(clock);raf=requestAnimationFrame(loop);}
   function startLoop(){if(raf==null){lastNow=performance.now();raf=requestAnimationFrame(loop);}}
   function stopLoop(){if(raf!=null){cancelAnimationFrame(raf);raf=null;}}
-  sepEl.addEventListener('input',function(){sep=parseFloat(sepEl.value);sepV.textContent=sep.toFixed(2)+' λ';recomputeGeometry();refreshStatic();});
-  phaseEl.addEventListener('input',function(){var d=parseInt(phaseEl.value,10);phase=d*Math.PI/180;phaseV.textContent=(d>0?'+':'')+d+'°';refreshStatic();});
+  sepEl.addEventListener('input',function(){sep=parseFloat(sepEl.value);sepV.innerHTML=sep.toFixed(2)+' &lambda;';recomputeGeometry();refreshStatic();});
+  phaseEl.addEventListener('input',function(){var d=parseInt(phaseEl.value,10);phase=d*Math.PI/180;phaseV.innerHTML=(d>0?'+':'')+d+'&deg;';refreshStatic();});
   ampEl.addEventListener('input',function(){var pc=parseInt(ampEl.value,10);amp=pc/100;ampV.textContent=pc+'%';refreshStatic();});
   playBtn.addEventListener('click',function(){if(raf==null){startLoop();playBtn.textContent='Pause';}else{stopLoop();playBtn.textContent='Play';}});
-  resetBtn.addEventListener('click',function(){sepEl.value='0.5';phaseEl.value='0';ampEl.value='100';sep=0.5;phase=0;amp=1;sepV.textContent='0.50 λ';phaseV.textContent='0°';ampV.textContent='100%';recomputeGeometry();refreshStatic();if(raf==null){startLoop();playBtn.textContent='Pause';}});
-  recomputeGeometry();drawPolar();updateReadouts(drawPolar());startLoop();
+  resetBtn.addEventListener('click',function(){sepEl.value='0.5';phaseEl.value='0';ampEl.value='100';sep=0.5;phase=0;amp=1;sepV.innerHTML='0.50 &lambda;';phaseV.innerHTML='0&deg;';ampV.textContent='100%';recomputeGeometry();refreshStatic();if(raf==null){startLoop();playBtn.textContent='Pause';}});
+  recomputeGeometry();updateReadouts(drawPolar());startLoop();
 })();
 </script>
+</body>
+</html>
