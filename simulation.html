@@ -1,0 +1,120 @@
+<h2 class="sr-only">Interactive two-tower radio interference simulator: adjust the second tower's spacing, phase, and power to see how the combined electromagnetic field redistributes energy and steers a directional beam.</h2>
+<style>
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+.ctl{display:flex;align-items:center;gap:12px;margin:0 0 12px}
+.ctl label{font-size:14px;color:var(--color-text-secondary);min-width:108px}
+.ctl .val{font-size:14px;font-weight:500;min-width:62px;text-align:right;color:var(--color-text-primary)}
+.chip{font-size:13px;color:var(--color-text-secondary)}
+.chip b{font-weight:500;color:var(--color-text-primary)}
+.fig{background:#0e1320;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);display:block;width:100%;height:auto}
+</style>
+<div style="padding:0.5rem 0 0.5rem">
+  <div class="ctl">
+    <label for="sep">Tower spacing</label>
+    <input type="range" id="sep" min="0.25" max="2" step="0.05" value="0.5" style="flex:1">
+    <span class="val" id="sepv">0.50 λ</span>
+  </div>
+  <div class="ctl">
+    <label for="phase">Tower 2 phase</label>
+    <input type="range" id="phase" min="-180" max="180" step="1" value="0" style="flex:1">
+    <span class="val" id="phasev">0°</span>
+  </div>
+  <div class="ctl">
+    <label for="amp">Tower 2 power</label>
+    <input type="range" id="amp" min="0" max="100" step="1" value="100" style="flex:1">
+    <span class="val" id="ampv">100%</span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:6px">
+    <div><canvas id="field" class="fig" width="280" height="200" aria-label="Field map showing interference fringes radiating from the two towers"></canvas></div>
+    <div style="display:flex;justify-content:center"><canvas id="polar" class="fig" width="800" height="220" style="width:800px;max-width:100%" aria-label="Far-field radiation pattern shown as a polar plot"></canvas></div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:18px;margin-top:12px">
+    <span class="chip">Main beam: <b id="beam">broadside (0°)</b></span>
+    <span class="chip">Nulls: <b id="nulls">deep — full cancellation</b></span>
+    <span class="chip">Total power: <b>conserved</b></span>
+  </div>
+  <div style="display:flex;gap:10px;margin-top:14px">
+    <button id="play">Pause</button>
+    <button id="reset">Reset</button>
+  </div>
+</div>
+<script>
+(function(){
+  var field=document.getElementById('field'),polar=document.getElementById('polar');
+  var fctx=field.getContext('2d'),pctx=polar.getContext('2d');
+  var FW=field.width,FH=field.height,PW=polar.width,PH=polar.height;
+  var sepEl=document.getElementById('sep'),phaseEl=document.getElementById('phase'),ampEl=document.getElementById('amp');
+  var sepV=document.getElementById('sepv'),phaseV=document.getElementById('phasev'),ampV=document.getElementById('ampv');
+  var beamEl=document.getElementById('beam'),nullsEl=document.getElementById('nulls');
+  var playBtn=document.getElementById('play'),resetBtn=document.getElementById('reset');
+  var LAMBDA=26,K=2*Math.PI/LAMBDA,R0=2.0,SPEED=3.0,SCALE=0.42;
+  var bgc=[14,19,32],warm=[255,196,90],cool=[96,178,255];
+  var LUT=new Uint8ClampedArray(512*3);
+  for(var j=0;j<512;j++){var t=(j/255.5)-1,e,c;if(t>=0){e=Math.pow(t,0.7);c=warm;}else{e=Math.pow(-t,0.7);c=cool;}LUT[j*3]=bgc[0]+(c[0]-bgc[0])*e;LUT[j*3+1]=bgc[1]+(c[1]-bgc[1])*e;LUT[j*3+2]=bgc[2]+(c[2]-bgc[2])*e;}
+  var img=fctx.createImageData(FW,FH),data=img.data;
+  for(var p=0;p<FW*FH;p++){data[p*4+3]=255;}
+  var ph1=new Float32Array(FW*FH),ph2=new Float32Array(FW*FH),ga1=new Float32Array(FW*FH),ga2=new Float32Array(FW*FH);
+  var sep=0.5,phase=0,amp=1;
+  function recomputeGeometry(){
+    var sepPx=sep*LAMBDA,cx=FW/2,cy=FH/2,x1=cx-sepPx/2,x2=cx+sepPx/2,i=0;
+    for(var y=0;y<FH;y++){for(var x=0;x<FW;x++){
+      var dx1=x-x1,dy1=y-cy,r1=Math.sqrt(dx1*dx1+dy1*dy1);
+      var dx2=x-x2,dy2=y-cy,r2=Math.sqrt(dx2*dx2+dy2*dy2);
+      ph1[i]=K*r1;ph2[i]=K*r2;ga1[i]=1/Math.sqrt(r1+R0);ga2[i]=1/Math.sqrt(r2+R0);i++;
+    }}
+  }
+  function drawTower(x,y){fctx.beginPath();fctx.arc(x,y,3.2,0,2*Math.PI);fctx.fillStyle='rgba(255,255,255,0.95)';fctx.fill();fctx.lineWidth=1;fctx.strokeStyle='rgba(0,0,0,0.55)';fctx.stroke();}
+  function drawField(time){
+    var wt=time*SPEED,i=0;
+    for(var n=0;n<FW*FH;n++){
+      var v=ga1[i]*Math.cos(ph1[i]-wt)+amp*ga2[i]*Math.cos(ph2[i]-wt+phase);
+      var tt=v/SCALE;if(tt>1)tt=1;else if(tt<-1)tt=-1;
+      var idx=((tt+1)*255.5)|0;if(idx<0)idx=0;else if(idx>511)idx=511;
+      var li=idx*3,di=i*4;data[di]=LUT[li];data[di+1]=LUT[li+1];data[di+2]=LUT[li+2];i++;
+    }
+    fctx.putImageData(img,0,0);
+    var sepPx=sep*LAMBDA,cx=FW/2,cy=FH/2;drawTower(cx-sepPx/2,cy);drawTower(cx+sepPx/2,cy);
+  }
+  function patternAt(th){var kd=2*Math.PI*sep,c=Math.cos(kd*Math.cos(th)+phase);return Math.sqrt(1+amp*amp+2*amp*c)/(1+amp);}
+  function beamThetas(){
+    if(amp<0.01)return [];
+    var kd=2*Math.PI*sep,ratio=-phase/kd;
+    if(ratio>1)return [0];if(ratio<-1)return [Math.PI];
+    var th=Math.acos(ratio);
+    return (th<0.001||Math.abs(th-Math.PI)<0.001)?[th]:[th,2*Math.PI-th];
+  }
+  function drawPolar(){
+    pctx.clearRect(0,0,PW,PH);pctx.fillStyle='#0e1320';pctx.fillRect(0,0,PW,PH);
+    var cx=PW/2,cy=PH/2,R=Math.min(PW,PH)/2-18;
+    pctx.lineWidth=1;
+    for(var g=1;g<=4;g++){pctx.strokeStyle='rgba(255,255,255,0.12)';pctx.beginPath();pctx.arc(cx,cy,R*g/4,0,2*Math.PI);pctx.stroke();}
+    for(var a=0;a<360;a+=30){var ra=a*Math.PI/180;pctx.strokeStyle=(a===0||a===180)?'rgba(255,255,255,0.24)':'rgba(255,255,255,0.12)';pctx.beginPath();pctx.moveTo(cx,cy);pctx.lineTo(cx+R*Math.cos(ra),cy-R*Math.sin(ra));pctx.stroke();}
+    var NS=361,minV=2;
+    pctx.beginPath();
+    for(var s=0;s<NS;s++){var th=s/(NS-1)*2*Math.PI,rr=patternAt(th);if(rr<minV)minV=rr;var px=cx+R*rr*Math.cos(th),py=cy-R*rr*Math.sin(th);if(s===0)pctx.moveTo(px,py);else pctx.lineTo(px,py);}
+    pctx.closePath();pctx.fillStyle='rgba(255,196,90,0.22)';pctx.fill();pctx.strokeStyle='rgba(255,196,90,0.95)';pctx.lineWidth=1.5;pctx.stroke();
+    var bt=beamThetas();pctx.strokeStyle='rgba(255,255,255,0.9)';pctx.lineWidth=1.5;
+    for(var b=0;b<bt.length;b++){pctx.beginPath();pctx.moveTo(cx,cy);pctx.lineTo(cx+R*Math.cos(bt[b]),cy-R*Math.sin(bt[b]));pctx.stroke();}
+    return minV;
+  }
+  function updateReadouts(minV){
+    var kd=2*Math.PI*sep,beamTxt;
+    if(amp<0.01){beamTxt='omnidirectional';}
+    else{var ratio=-phase/kd;if(ratio>1||ratio<-1){beamTxt='endfire (along tower line)';}
+      else{var thetaDeg=Math.acos(ratio)*180/Math.PI,off=Math.round(Math.abs(thetaDeg-90));beamTxt=off===0?'broadside (0°)':(off>=89?'endfire (along tower line)':(off+'° off broadside'));}}
+    beamEl.textContent=beamTxt;
+    nullsEl.textContent=(amp<0.01)?'none (single source)':(minV<0.03?'deep — full cancellation':(minV<0.3?'partial':'shallow'));
+  }
+  function refreshStatic(){var m=drawPolar();updateReadouts(m);if(raf==null)drawField(clock);}
+  var raf=null,clock=0,lastNow=0;
+  function loop(now){var dt=(now-lastNow)/1000;lastNow=now;clock+=dt;drawField(clock);raf=requestAnimationFrame(loop);}
+  function startLoop(){if(raf==null){lastNow=performance.now();raf=requestAnimationFrame(loop);}}
+  function stopLoop(){if(raf!=null){cancelAnimationFrame(raf);raf=null;}}
+  sepEl.addEventListener('input',function(){sep=parseFloat(sepEl.value);sepV.textContent=sep.toFixed(2)+' λ';recomputeGeometry();refreshStatic();});
+  phaseEl.addEventListener('input',function(){var d=parseInt(phaseEl.value,10);phase=d*Math.PI/180;phaseV.textContent=(d>0?'+':'')+d+'°';refreshStatic();});
+  ampEl.addEventListener('input',function(){var pc=parseInt(ampEl.value,10);amp=pc/100;ampV.textContent=pc+'%';refreshStatic();});
+  playBtn.addEventListener('click',function(){if(raf==null){startLoop();playBtn.textContent='Pause';}else{stopLoop();playBtn.textContent='Play';}});
+  resetBtn.addEventListener('click',function(){sepEl.value='0.5';phaseEl.value='0';ampEl.value='100';sep=0.5;phase=0;amp=1;sepV.textContent='0.50 λ';phaseV.textContent='0°';ampV.textContent='100%';recomputeGeometry();refreshStatic();if(raf==null){startLoop();playBtn.textContent='Pause';}});
+  recomputeGeometry();drawPolar();updateReadouts(drawPolar());startLoop();
+})();
+</script>
